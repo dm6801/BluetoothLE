@@ -1,28 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     tools:ignore="HardcodedText,ButtonStyle">
 
-    <Button
-        android:id="@+id/enable_bt_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="enable bluetooth" />
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/devices_recycler"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        tools:listitem="@layout/item_ble_device" />
 
-    <Button
-        android:id="@+id/scan_ble_button"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="scan ble" />
+        android:orientation="horizontal">
 
-    <Button
-        android:id="@+id/scan_ble_stop_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="stop ble scan" />
+        <Button
+            android:id="@+id/scan_ble_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="scan ble" />
+
+        <Button
+            android:id="@+id/scan_ble_stop_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="stop ble scan" />
+
+        <Button
+            android:id="@+id/enable_bt_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="enable bluetooth" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -48,16 +63,10 @@
             android:text="close gatt" />
     </LinearLayout>
 
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <Button
-            android:id="@+id/test_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center|bottom"
-            android:text="test" />
-    </FrameLayout>
+    <Button
+        android:id="@+id/test_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center|bottom"
+        android:text="test" />
 </LinearLayout>
