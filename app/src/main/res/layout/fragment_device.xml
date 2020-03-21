@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/device_write_buffer"
+        android:layout_below="@id/device_buttons"
+        android:layout_margin="2dp"
+        android:background="@drawable/ble_device_background"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/device_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            tools:text="sample text" />
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/device_mac_address"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_centerInParent="true"
+        android:alpha="0.3"
+        android:gravity="center"
+        android:textAlignment="center"
+        android:textSize="32sp"
+        tools:text="AB:CD:EF:01:02:03" />
+
+    <EditText
+        android:id="@+id/device_write_buffer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_toLeftOf="@id/device_write_button"
+        android:lines="1"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/device_write_button"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:ignore="Autofill,LabelFor,TextFields" />
+
+    <Button
+        android:id="@+id/device_write_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBaseline="@id/device_write_buffer"
+        android:layout_alignParentEnd="true"
+        android:layout_marginBottom="4dp"
+        android:text="send" />
+
+    <LinearLayout
+        android:id="@+id/device_buttons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/connect_gatt_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="connect" />
+
+        <Button
+            android:id="@+id/disconnect_gatt_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="disconnect" />
+
+        <Button
+            android:id="@+id/close_gatt_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="close" />
+    </LinearLayout>
+</RelativeLayout>

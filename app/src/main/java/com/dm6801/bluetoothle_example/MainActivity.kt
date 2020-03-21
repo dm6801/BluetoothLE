@@ -4,8 +4,10 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.PermissionChecker
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import com.dm6801.bluetoothle.BLE
+import com.dm6801.bluetoothle.utilities.catch
 
 class MainActivity : AppCompatActivity() {
 
@@ -17,7 +19,6 @@ class MainActivity : AppCompatActivity() {
             android.Manifest.permission.ACCESS_FINE_LOCATION
         )
         private const val fragmentContainer = R.id.fragment_container
-        private val landing = MainFragment::class.java
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,12 +27,25 @@ class MainActivity : AppCompatActivity() {
         BLE.init(this, log = true)
         getPermissions()
         setLanding()
+        initFragmentListener()
+    }
+
+    private fun initFragmentListener() {
+        supportFragmentManager.addOnBackStackChangedListener {
+            val fragment = supportFragmentManager.findFragmentById(fragmentContainer)
+            if (fragment !is MainFragment) BLE.stopScan()
+        }
+    }
+
+    fun addFragment(fragment: Fragment) = catch {
+        supportFragmentManager.commit {
+            addToBackStack(fragment.javaClass.simpleName)
+            add(fragmentContainer, fragment, fragment.javaClass.simpleName)
+        }
     }
 
     private fun setLanding() {
-        supportFragmentManager.commit {
-            add(fragmentContainer, MainFragment(), MainFragment::class.simpleName)
-        }
+        addFragment(MainFragment())
     }
 
     private fun getPermissions() {

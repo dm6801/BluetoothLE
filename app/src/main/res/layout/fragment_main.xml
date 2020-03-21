@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:background="@color/background"
     tools:ignore="HardcodedText,ButtonStyle">
 
     <androidx.recyclerview.widget.RecyclerView
@@ -37,30 +38,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="enable bluetooth" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/connect_gatt_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="connect gatt" />
-
-        <Button
-            android:id="@+id/disconnect_gatt_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="disconnect gatt" />
-
-        <Button
-            android:id="@+id/close_gatt_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="close gatt" />
     </LinearLayout>
 
     <Button

@@ -5,6 +5,10 @@ import android.bluetooth.*
 import android.bluetooth.le.*
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.Handler
+import android.os.HandlerThread
+import android.os.Looper
 import com.dm6801.bluetoothle.utilities.Log
 import com.dm6801.bluetoothle.utilities.catch
 import com.dm6801.bluetoothle.utilities.main
@@ -140,6 +144,8 @@ object BLE {
     internal val gattClients: MutableMap<String, Pair<BluetoothGatt, BluetoothGattCallback>> =
         ConcurrentHashMap()
 
+    fun findDevice(address: String): BluetoothDevice? = adapter?.getRemoteDevice(address)
+
     fun findGatt(address: String): BluetoothGatt? = gattClients[address]?.first
 
     fun findGattCallback(address: String): BluetoothGattCallback? = gattClients[address]?.second
@@ -149,8 +155,26 @@ object BLE {
         catch {
             findGatt(device.address)?.connect()
                 ?: run {
-                    gattClients[device.address] =
-                        device.connectGatt(context, false, gattCallback) to gattCallback
+                    gattClients[device.address] = when {
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ->
+                            device.connectGatt(
+                                context,
+                                false,
+                                gattCallback,
+                                BluetoothDevice.TRANSPORT_LE,
+                                BluetoothDevice.PHY_LE_1M_MASK,
+                                Handler(Looper.getMainLooper())
+                            )
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ->
+                            device.connectGatt(
+                                context,
+                                false,
+                                gattCallback,
+                                BluetoothDevice.TRANSPORT_LE
+                            )
+                        else ->
+                            device.connectGatt(context, false, gattCallback)
+                    } to gattCallback
                 }
         }
     }

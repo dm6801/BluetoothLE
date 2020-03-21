@@ -10,19 +10,26 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.android.synthetic.main.item_ble_device.view.*
 
-class DevicesRecyclerAdapter : RecyclerView.Adapter<DevicesRecyclerAdapter.ViewHolder>() {
+class DevicesRecyclerAdapter(
+    private val onItemClick: (ScanResult) -> Unit
+) : RecyclerView.Adapter<DevicesRecyclerAdapter.ViewHolder>() {
 
     companion object {
         private const val layout = R.layout.item_ble_device
+
         @Suppress("UNCHECKED_CAST")
         fun <T> RecyclerView.getTypedAdapter() = adapter as? T
     }
 
-    private val asyncListDiffer = AsyncListDiffer(this, object : DiffUtil.ItemCallback<ScanResult>() {
-        override fun areItemsTheSame(oldItem: ScanResult, newItem: ScanResult) = oldItem.device.address == newItem.device.address
-        override fun areContentsTheSame(oldItem: ScanResult, newItem: ScanResult) = oldItem == newItem
+    private val asyncListDiffer =
+        AsyncListDiffer(this, object : DiffUtil.ItemCallback<ScanResult>() {
+            override fun areItemsTheSame(oldItem: ScanResult, newItem: ScanResult) =
+                oldItem.device.address == newItem.device.address
 
-    })
+            override fun areContentsTheSame(oldItem: ScanResult, newItem: ScanResult) =
+                oldItem == newItem
+
+        })
 
     fun submitList(results: List<ScanResult>) {
         asyncListDiffer.submitList(results)
@@ -62,6 +69,9 @@ class DevicesRecyclerAdapter : RecyclerView.Adapter<DevicesRecyclerAdapter.ViewH
         fun bind(item: ScanResult, position: Int, payloads: MutableList<Any>? = null) {
             nameTextView?.text = item.device?.name
             macAddressTextView?.text = item.device?.address
+            itemView.setOnClickListener {
+                onItemClick(item)
+            }
         }
     }
 }

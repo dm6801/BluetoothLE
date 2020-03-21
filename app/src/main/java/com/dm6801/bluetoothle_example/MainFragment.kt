@@ -9,14 +9,10 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.RecyclerView
 import com.dm6801.bluetoothle.*
 import com.dm6801.bluetoothle.utilities.catch
-import com.dm6801.bluetoothle.utilities.hashCode
 import com.dm6801.bluetoothle.utilities.log
 import com.dm6801.bluetoothle.utilities.main
 import com.dm6801.bluetoothle_example.DevicesRecyclerAdapter.Companion.getTypedAdapter
 import kotlinx.android.synthetic.main.fragment_main.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.toCollection
-import kotlinx.coroutines.channels.withIndex
 import kotlinx.coroutines.flow.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -43,8 +39,15 @@ class MainFragment : Fragment() {
         initButtons()
     }
 
+    override fun onStop() {
+        super.onStop()
+        BLE.stopScan()
+    }
+
     private fun initRecyclerView() {
-        recyclerView?.adapter = DevicesRecyclerAdapter()
+        recyclerView?.adapter = DevicesRecyclerAdapter(onItemClick = { result ->
+            (activity as? MainActivity)?.addFragment(DeviceFragment(result.device))
+        })
     }
 
     @Suppress("EXPERIMENTAL_API_USAGE")
@@ -60,20 +63,6 @@ class MainFragment : Fragment() {
         }
         scan_ble_stop_button?.setOnClickListener {
             BLE.stopScan()
-        }
-        connect_gatt_button?.setOnClickListener {
-            device?.connect(BleGattCallback())
-        }
-        disconnect_gatt_button?.setOnClickListener {
-            device?.disconnect()
-        }
-        close_gatt_button?.setOnClickListener {
-            device?.close()
-        }
-        test_button?.setOnClickListener {
-            //sendRTC()
-            //fetchSystemInfo()
-            writeAsync()
         }
     }
 
