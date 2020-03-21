@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:ignore="HardcodedText,ButtonStyle">
+
+    <Button
+        android:id="@+id/enable_bt_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="enable bluetooth" />
+
+    <Button
+        android:id="@+id/scan_ble_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="scan ble" />
+
+    <Button
+        android:id="@+id/scan_ble_stop_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="stop ble scan" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/connect_gatt_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="connect gatt" />
+
+        <Button
+            android:id="@+id/disconnect_gatt_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="disconnect gatt" />
+
+        <Button
+            android:id="@+id/close_gatt_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="close gatt" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <Button
+            android:id="@+id/test_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center|bottom"
+            android:text="test" />
+    </FrameLayout>
+</LinearLayout>
