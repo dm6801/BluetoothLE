@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap
 object BLE {
 
     const val REQUEST_ENABLE_BT: Int = 13431
+    const val SCAN_TIMEOUT: Long = 5_000
 
     var log: Boolean = true
     private var context: Context? = null
@@ -23,8 +24,9 @@ object BLE {
     val adapter: BluetoothAdapter? get() = manager?.adapter
     val scanner: BluetoothLeScanner? get() = adapter?.bluetoothLeScanner
 
-    fun init(context: Context?) {
+    fun init(context: Context?, log: Boolean = true) {
         this.context = context
+        this.log = log
     }
 
     fun enable(activity: Activity?) {
@@ -41,17 +43,13 @@ object BLE {
 
     fun scan(
         scope: CoroutineScope,
-        timeout: Long = 5_000,
+        timeout: Long = SCAN_TIMEOUT,
         unique: Boolean? = null
     ): ReceiveChannel<ScanResult> {
         stopScan()
         return CoroutineScope(scope.coroutineContext).produce {
             val channel = Channel<ScanResult>()
-            val scanCallback =
-                ChannelScanCallback(
-                    channel,
-                    unique
-                )
+            val scanCallback = ChannelScanCallback(channel, unique)
             try {
                 scanner?.startScan(
                     emptyList<ScanFilter>(),
@@ -62,30 +60,33 @@ object BLE {
                     delay(timeout)
                     scanner?.stopScan(scanCallback)
                     channel.close(ScanException.Stop("timeout: $timeout"))
+                    scanChannel = null
                 }
                 for (scanResult in channel) {
                     if (channel.isClosedForSend) break
                     send(scanResult)
                 }
-            } catch (e: Exception) {
-                e.cause?.printStackTrace()
-                    ?: e.printStackTrace()
+            } catch (t: Throwable) {
+                t.cause?.printStackTrace()
+                    ?: t.printStackTrace()
             } finally {
                 try {
                     scanner?.stopScan(scanCallback)
                     channel.close(ScanException.Stop())
-                    scanChannel?.cancel()
-                    scanChannel = null
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                } catch (t: Throwable) {
+                    t.printStackTrace()
                 }
             }
         }.also { scanChannel = it }
     }
 
     fun stopScan() {
-        scanChannel?.cancel(ScanException.Stop().cancellation)
-        scanChannel = null
+        try {
+            scanChannel?.cancel(ScanException.Stop().cancellation)
+            scanChannel = null
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        }
     }
 
     class ChannelScanCallback(
