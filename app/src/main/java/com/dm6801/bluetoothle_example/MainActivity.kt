@@ -21,25 +21,39 @@ class MainActivity : AppCompatActivity() {
         private const val fragmentContainer = R.id.fragment_container
     }
 
+    val logHandler = BleLogHandler()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        BLE.init(this, log = true)
+        BLE.init(this, logHandler)
         getPermissions()
-        setLanding()
         initFragmentListener()
+        setLanding()
     }
 
     private fun initFragmentListener() {
         supportFragmentManager.addOnBackStackChangedListener {
-            val fragment = supportFragmentManager.findFragmentById(fragmentContainer)
-            if (fragment !is MainFragment) BLE.stopScan()
+            supportActionBar?.setDisplayHomeAsUpEnabled(supportFragmentManager.backStackEntryCount > 1)
+            val foreground = supportFragmentManager.findFragmentById(fragmentContainer)
+            supportFragmentManager.fragments.forEach { fragment ->
+                (fragment as? BaseFragment)?.let {
+                    if (it == foreground) it.onForeground()
+                    else it.onBackground()
+                }
+            }
         }
     }
 
     fun addFragment(fragment: Fragment) = catch {
         supportFragmentManager.commit {
             addToBackStack(fragment.javaClass.simpleName)
+            setCustomAnimations(
+                androidx.fragment.R.anim.fragment_open_enter,
+                androidx.fragment.R.anim.fragment_open_exit,
+                androidx.fragment.R.anim.fragment_close_enter,
+                androidx.fragment.R.anim.fragment_close_exit
+            )
             add(fragmentContainer, fragment, fragment.javaClass.simpleName)
         }
     }
@@ -53,6 +67,21 @@ class MainActivity : AppCompatActivity() {
                 PermissionChecker.checkSelfPermission(this, it) !=
                         PermissionChecker.PERMISSION_GRANTED
             }) ActivityCompat.requestPermissions(this, permissions, REQUEST_PERMISSIONS_CODE)
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        return navigateBack() ?: super.onSupportNavigateUp()
+    }
+
+    override fun onBackPressed() {
+        if (navigateBack() != true)
+            finish()
+    }
+
+    fun navigateBack(): Boolean? {
+        return if (supportFragmentManager.backStackEntryCount > 1)
+            catch { supportFragmentManager.popBackStackImmediate() }
+        else false
     }
 
 }

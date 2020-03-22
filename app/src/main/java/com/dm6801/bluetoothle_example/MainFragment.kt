@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.RecyclerView
 import com.dm6801.bluetoothle.*
 import com.dm6801.bluetoothle.utilities.catch
@@ -18,7 +17,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
 
-class MainFragment : Fragment() {
+class MainFragment : BaseFragment() {
 
     private val layout = R.layout.fragment_main
     private val recyclerView: RecyclerView? get() = devices_recycler
@@ -41,6 +40,11 @@ class MainFragment : Fragment() {
 
     override fun onStop() {
         super.onStop()
+        BLE.stopScan()
+    }
+
+    override fun onBackground() {
+        super.onBackground()
         BLE.stopScan()
     }
 

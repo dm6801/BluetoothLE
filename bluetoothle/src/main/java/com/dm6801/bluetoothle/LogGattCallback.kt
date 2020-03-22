@@ -5,10 +5,12 @@ import com.dm6801.bluetoothle.utilities.Log
 import com.dm6801.bluetoothle.utilities.hashCode
 import com.dm6801.bluetoothle.utilities.justify
 import kotlinx.coroutines.Deferred
+import java.util.logging.Level
 
-abstract class BleAbstractGattCallback : BluetoothGattCallback() {
+open class LogGattCallback : BluetoothGattCallback() {
 
     open val READ_CALLBACK_TIMEOUT = 5_000L
+    protected var logger = BLE.logger
 
     companion object {
         fun getStateString(state: Int): String? {
@@ -26,7 +28,7 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
 
     override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
         super.onConnectionStateChange(gatt, status, newState)
-        logGatt(
+        log(
             "onConnectionStateChange():",
             gatt,
             status,
@@ -36,28 +38,27 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
 
     override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
         super.onServicesDiscovered(gatt, status)
-        logGatt("onServicesDiscovered():", gatt, status)
-        //if (status != BluetoothGatt.GATT_SUCCESS) return
+        log("onServicesDiscovered():", gatt, status)
     }
 
     override fun onPhyRead(gatt: BluetoothGatt?, txPhy: Int, rxPhy: Int, status: Int) {
         super.onPhyRead(gatt, txPhy, rxPhy, status)
-        logGatt("onPhyRead():", gatt, status, text = "txPhy=$txPhy\trxPhy=$rxPhy")
+        log("onPhyRead():", gatt, status, text = "txPhy=$txPhy\trxPhy=$rxPhy")
     }
 
     override fun onPhyUpdate(gatt: BluetoothGatt?, txPhy: Int, rxPhy: Int, status: Int) {
         super.onPhyUpdate(gatt, txPhy, rxPhy, status)
-        logGatt("onPhyUpdate():", gatt, status, text = "txPhy=$txPhy\trxPhy=$rxPhy")
+        log("onPhyUpdate():", gatt, status, text = "txPhy=$txPhy\trxPhy=$rxPhy")
     }
 
     override fun onReadRemoteRssi(gatt: BluetoothGatt?, rssi: Int, status: Int) {
         super.onReadRemoteRssi(gatt, rssi, status)
-        logGatt("onReadRemoteRssi():", gatt, status, text = "rssi=$rssi")
+        log("onReadRemoteRssi():", gatt, status, text = "rssi=$rssi")
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
         super.onMtuChanged(gatt, mtu, status)
-        logGatt("onMtuChanged():", gatt, status, text = "mtu=$mtu")
+        log("onMtuChanged():", gatt, status, text = "mtu=$mtu")
     }
 
     override fun onDescriptorRead(
@@ -66,7 +67,7 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
         status: Int
     ) {
         super.onDescriptorRead(gatt, descriptor, status)
-        logGatt(
+        log(
             "onDescriptorRead():",
             gatt,
             status,
@@ -81,7 +82,7 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
         status: Int
     ) {
         super.onDescriptorWrite(gatt, descriptor, status)
-        logGatt(
+        log(
             "onDescriptorWrite():",
             gatt,
             status,
@@ -95,7 +96,7 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
         characteristic: BluetoothGattCharacteristic?
     ) {
         super.onCharacteristicChanged(gatt, characteristic)
-        logGatt(
+        log(
             "onCharacteristicChanged():",
             gatt,
             characteristic = characteristic,
@@ -109,7 +110,7 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
         status: Int
     ) {
         super.onCharacteristicRead(gatt, characteristic, status)
-        logGatt(
+        log(
             "onCharacteristicRead():",
             gatt,
             status,
@@ -124,7 +125,7 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
         status: Int
     ) {
         super.onCharacteristicWrite(gatt, characteristic, status)
-        logGatt(
+        log(
             "onCharacteristicWrite():",
             gatt,
             status,
@@ -135,10 +136,10 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
 
     override fun onReliableWriteCompleted(gatt: BluetoothGatt?, status: Int) {
         super.onReliableWriteCompleted(gatt, status)
-        logGatt("onReliableWriteCompleted():", gatt, status)
+        log("onReliableWriteCompleted():", gatt, status)
     }
 
-    private fun logGatt(
+    private fun log(
         tag: String,
         gatt: BluetoothGatt? = null,
         status: Int? = null,
@@ -146,8 +147,9 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
         characteristic: BluetoothGattCharacteristic? = null,
         text: String? = null
     ) {
-        if (text == null)
-            Log(
+        logger.log(
+            Level.INFO,
+            if (text == null)
                 Thread.currentThread().justify() +
                         gatt?.device?.address.justify() +
                         tag.justify() +
@@ -156,9 +158,7 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
                         (characteristic?.hashCode(16)?.justify("characteristic ", size = 30)
                             ?: "") +
                         status.justify("status ")
-            )
-        else
-            Log(
+            else
                 Thread.currentThread().justify() +
                         gatt?.device?.address.justify() +
                         (gatt?.hashCode(16)?.justify("gatt ") ?: "") +
@@ -168,7 +168,12 @@ abstract class BleAbstractGattCallback : BluetoothGattCallback() {
                         status.justify("status ") +
                         tag.justify("\n") +
                         text
-            )
+
+        )
+    }
+
+    protected fun log(obj: Any?, level: Level = Level.INFO) {
+        logger.log(level, obj.toString())
     }
 
     @Throws(NotImplementedError::class)

@@ -9,7 +9,7 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeoutException
 
-abstract class BleGattCallback : BleAbstractGattCallback() {
+abstract class BleGattCallback : LogGattCallback() {
 
     companion object {
         val manager: BluetoothManager? get() = BLE.manager
@@ -52,16 +52,16 @@ abstract class BleGattCallback : BleAbstractGattCallback() {
         this.gatt = gatt
         if (status != BluetoothGatt.GATT_SUCCESS) return
         val service = gatt?.getService(SERVICE_UUID)
-        Log("service ${service.hashCode(16)}")
+        log("service ${service.hashCode(16)}")
         clearCharacteristics()
         service?.characteristics?.forEach { characteristic ->
-            Log("characteristic ${characteristic.hashCode(16)}")
+            log("characteristic ${characteristic.hashCode(16)}")
             if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ > 0) {
-                Log("characteristic ${characteristic.hashCode(16)} readable")
+                log("characteristic ${characteristic.hashCode(16)} readable")
                 readable.add(characteristic)
             }
             if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY > 0) {
-                Log("characteristic ${characteristic.hashCode(16)} notifiable")
+                log("characteristic ${characteristic.hashCode(16)} notifiable")
                 catch { gatt.setCharacteristicNotification(characteristic, true) }
                 catch {
                     characteristic.descriptors.forEach { descriptor ->
@@ -72,7 +72,7 @@ abstract class BleGattCallback : BleAbstractGattCallback() {
                 }
             }
             if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE > 0) {
-                Log("characteristic ${characteristic.hashCode(16)} writable, setting WRITE_TYPE_DEFAULT")
+                log("characteristic ${characteristic.hashCode(16)} writable, setting WRITE_TYPE_DEFAULT")
                 catch {
                     characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                     writable.add(characteristic)
@@ -87,7 +87,6 @@ abstract class BleGattCallback : BleAbstractGattCallback() {
         status: Int
     ) {
         super.onCharacteristicRead(gatt, characteristic, status)
-        //readQueue.poll()?.complete(characteristic?.value ?: byteArrayOf())
         readQueue.entries.firstOrNull()?.let { callback ->
             readQueue.remove(callback.key)?.complete(characteristic?.value ?: byteArrayOf())
         }
@@ -98,7 +97,6 @@ abstract class BleGattCallback : BleAbstractGattCallback() {
         characteristic: BluetoothGattCharacteristic?
     ) {
         super.onCharacteristicChanged(gatt, characteristic)
-        //readQueue.poll()?.complete(characteristic?.value ?: byteArrayOf())
         readQueue.entries.firstOrNull()?.let { callback ->
             readQueue.remove(callback.key)?.complete(characteristic?.value ?: byteArrayOf())
         }
@@ -112,7 +110,6 @@ abstract class BleGattCallback : BleAbstractGattCallback() {
         if (state != BluetoothGatt.STATE_CONNECTED) throw GattException.NotConnected(state)
         if (writable.isEmpty()) throw GattException.NotWritable(state)
         val completable = CompletableDeferred<ByteArray>()
-        //readQueue.add(completable)
         val tag = System.currentTimeMillis()
         readQueue[tag] = completable
         writable.forEach {

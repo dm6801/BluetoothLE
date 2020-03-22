@@ -7,14 +7,15 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Handler
-import android.os.HandlerThread
 import android.os.Looper
-import com.dm6801.bluetoothle.utilities.Log
 import com.dm6801.bluetoothle.utilities.catch
+import com.dm6801.bluetoothle.utilities.exceptionHandler
 import com.dm6801.bluetoothle.utilities.main
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.logging.Level
+import java.util.logging.Logger
 
 @Suppress("EXPERIMENTAL_API_USAGE")
 object BLE {
@@ -22,15 +23,25 @@ object BLE {
     const val REQUEST_ENABLE_BT: Int = 13431
     const val SCAN_TIMEOUT: Long = 5_000
 
-    var log: Boolean = true
     private var context: Context? = null
     val manager: BluetoothManager? get() = context?.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager?
     val adapter: BluetoothAdapter? get() = manager?.adapter
     val scanner: BluetoothLeScanner? get() = adapter?.bluetoothLeScanner
+    internal val logger: Logger = Logger.getLogger(javaClass.name)
+    private val systemLoggers
+        get() = listOf(
+            Logger.getLogger(android.bluetooth.BluetoothManager::class.java.name),
+            Logger.getLogger(android.bluetooth.BluetoothAdapter::class.java.name),
+            Logger.getLogger(android.bluetooth.BluetoothGatt::class.java.name)
+        )
 
-    fun init(context: Context?, log: Boolean = true) {
+    fun init(context: Context?, loggingHandler: java.util.logging.Handler? = null) {
         this.context = context
-        this.log = log
+        logger.handlers.forEach(logger::removeHandler)
+        (systemLoggers + logger).forEach { logger ->
+            logger.level = Level.ALL
+            loggingHandler?.let(logger::addHandler)
+        }
     }
 
     fun enable(activity: Activity?) {
@@ -60,7 +71,7 @@ object BLE {
                     ScanSettings.Builder().build(),
                     scanCallback
                 )
-                launch {
+                launch(exceptionHandler) {
                     delay(timeout)
                     scanner?.stopScan(scanCallback)
                     channel.close(ScanException.Stop("timeout: $timeout"))
@@ -202,21 +213,22 @@ object BLE {
 
     @Throws(Exception::class)
     fun write(address: String, byteArray: ByteArray) = main {
-        val callback = findGattCallback(address) as? BleAbstractGattCallback
-            ?: throw BleAbstractGattCallback.GattException.Undefined()
+        val callback = findGattCallback(address) as? LogGattCallback
+            ?: throw LogGattCallback.GattException.Undefined()
         callback.write(byteArray)
     }
 
     @Throws(Exception::class)
     fun asyncWrite(address: String, byteArray: ByteArray): Deferred<ByteArray> {
-        val callback = findGattCallback(address) as? BleAbstractGattCallback
-            ?: throw BleAbstractGattCallback.GattException.Undefined()
+        val callback = findGattCallback(address) as? LogGattCallback
+            ?: throw LogGattCallback.GattException.Undefined()
         return callback.writeAsync(byteArray)
     }
     //endregion
 
     private fun log(obj: Any?) {
-        if (log) Log(obj.toString())
+        //if (log) Log(obj.toString())
+        logger.log(Level.INFO, obj.toString())
     }
 
 }

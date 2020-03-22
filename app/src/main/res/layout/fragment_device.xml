@@ -1,72 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/background"
+    tools:ignore="HardcodedText,ButtonStyle">
 
     <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_above="@id/device_write_buffer"
-        android:layout_below="@id/device_buttons"
+        android:id="@+id/device_log_scroll"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:layout_margin="2dp"
         android:background="@drawable/ble_device_background"
-        android:padding="8dp">
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:padding="8dp"
+        app:layout_constraintBottom_toTopOf="@id/device_write_buffer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <TextView
             android:id="@+id/device_log"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
+            android:gravity="bottom"
             tools:text="sample text" />
     </ScrollView>
 
     <TextView
         android:id="@+id/device_mac_address"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:layout_centerInParent="true"
         android:alpha="0.3"
+        android:clickable="false"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
         android:gravity="center"
         android:textAlignment="center"
         android:textSize="32sp"
+        app:layout_constraintBottom_toBottomOf="@id/device_log_scroll"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/device_log_scroll"
         tools:text="AB:CD:EF:01:02:03" />
 
     <EditText
         android:id="@+id/device_write_buffer"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_toLeftOf="@id/device_write_button"
         android:lines="1"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toBottomOf="@id/device_write_button"
         app:layout_constraintEnd_toStartOf="@id/device_write_button"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/device_write_button"
         tools:ignore="Autofill,LabelFor,TextFields" />
 
     <Button
         android:id="@+id/device_write_button"
+        style="?android:attr/buttonBarButtonStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBaseline="@id/device_write_buffer"
-        android:layout_alignParentEnd="true"
-        android:layout_marginBottom="4dp"
-        android:text="send" />
+        android:text="send"
+        app:layout_constraintBottom_toTopOf="@id/device_buttons"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <LinearLayout
         android:id="@+id/device_buttons"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
         android:gravity="center"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
         <Button
             android:id="@+id/connect_gatt_button"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_margin="4dp"
             android:layout_weight="1"
             android:text="connect" />
 
@@ -74,6 +89,7 @@
             android:id="@+id/disconnect_gatt_button"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_margin="4dp"
             android:layout_weight="1"
             android:text="disconnect" />
 
@@ -81,7 +97,8 @@
             android:id="@+id/close_gatt_button"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_margin="4dp"
             android:layout_weight="1"
             android:text="close" />
     </LinearLayout>
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
