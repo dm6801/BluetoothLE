@@ -9,7 +9,6 @@ import android.widget.EditText
 import android.widget.ScrollView
 import android.widget.TextView
 import com.dm6801.bluetoothle.*
-import com.dm6801.bluetoothle.utilities.main
 import com.dm6801.bluetoothle.utilities.weakRef
 import kotlinx.android.synthetic.main.fragment_device.*
 import kotlinx.coroutines.*
@@ -172,9 +171,9 @@ class DeviceFragment(device: BluetoothDevice) : BaseFragment() {
                         .map { java.lang.Long.parseLong(it, 16).toByte() }
                         .toByteArray()
                     main {
-                        val result = device?.asyncWrite(outByteArray)?.await() ?: return@main
+                        val result = device?.writeAsync(outByteArray)?.await() ?: return@main
                         val receivedHex =
-                            result.joinToString(" ") { String.format("%02x", it) }
+                            result.joinToString(" ") { String.format("%02X", it) }
                         commLog.appendln(
                             "-> ${sendHex.toUpperCase(Locale.ROOT)}\n<- ${receivedHex.toUpperCase(
                                 Locale.ROOT

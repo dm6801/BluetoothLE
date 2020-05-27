@@ -1,7 +1,6 @@
 package com.dm6801.bluetoothle_example
 
 import com.dm6801.bluetoothle.utilities.catch
-import com.dm6801.bluetoothle.utilities.exceptionHandler
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce

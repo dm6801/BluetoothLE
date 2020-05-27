@@ -8,9 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import com.dm6801.bluetoothle.utilities.catch
-import com.dm6801.bluetoothle.utilities.exceptionHandler
-import com.dm6801.bluetoothle.utilities.main
+import com.dm6801.bluetoothle.utilities.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import java.util.concurrent.ConcurrentHashMap
@@ -35,6 +33,10 @@ object BLE {
             Logger.getLogger(android.bluetooth.BluetoothGatt::class.java.name)
         )
 
+    private val exceptionHandler = CoroutineExceptionHandler { coroutineContext, throwable ->
+        throwable.printStackTrace()
+    }
+
     fun init(context: Context?, loggingHandler: java.util.logging.Handler? = null) {
         this.context = context
         logger.handlers.forEach(logger::removeHandler)
@@ -53,6 +55,16 @@ object BLE {
         }
     }
 
+    fun getStateString(state: Int): String? {
+        return when (state) {
+            BluetoothProfile.STATE_CONNECTED -> "STATE_CONNECTED"
+            BluetoothProfile.STATE_CONNECTING -> "STATE_CONNECTING"
+            BluetoothProfile.STATE_DISCONNECTING -> "STATE_DISCONNECTING"
+            BluetoothProfile.STATE_DISCONNECTED -> "STATE_DISCONNECTED"
+            else -> null
+        }
+    }
+
     //region scan
     private var scanChannel: ReceiveChannel<ScanResult>? = null
 
@@ -60,9 +72,9 @@ object BLE {
         scope: CoroutineScope,
         timeout: Long = SCAN_TIMEOUT,
         unique: Boolean? = null
-    ): ReceiveChannel<ScanResult> {
+    ): ReceiveChannel<ScanResult> = ensureMainThread {
         stopScan()
-        return CoroutineScope(scope.coroutineContext).produce {
+        CoroutineScope(scope.coroutineContext).produce {
             val channel = Channel<ScanResult>()
             val scanCallback = ChannelScanCallback(channel, unique)
             try {
@@ -95,7 +107,7 @@ object BLE {
         }.also { scanChannel = it }
     }
 
-    fun stopScan() {
+    fun stopScan() = ensureMainThread {
         try {
             scanChannel?.cancel(ScanException.Stop().cancellation)
             scanChannel = null
@@ -152,16 +164,30 @@ object BLE {
     //endregion
 
     //region gatt
-    internal val gattClients: MutableMap<String, Pair<BluetoothGatt, BluetoothGattCallback>> =
+    val gattClients: MutableMap<String, Pair<BluetoothGatt, BluetoothGattCallback>> =
         ConcurrentHashMap()
 
     fun findDevice(address: String): BluetoothDevice? = adapter?.getRemoteDevice(address)
 
     fun findGatt(address: String): BluetoothGatt? = gattClients[address]?.first
 
-    fun findGattCallback(address: String): BluetoothGattCallback? = gattClients[address]?.second
+    @Suppress("UNCHECKED_CAST")
+    fun <T : BluetoothGattCallback> findGattCallback(address: String): T? =
+        gattClients[address]?.second as? T
 
-    fun connect(device: BluetoothDevice, gattCallback: BluetoothGattCallback) = main {
+    fun isConnected(address: String): Boolean = findDevice(address)?.let(::isConnected) ?: false
+
+    fun isConnected(device: BluetoothDevice): Boolean {
+        return manager
+            ?.getConnectedDevices(BluetoothProfile.GATT)
+            ?.contains(device) == true
+    }
+
+    fun connect(address: String, gattCallback: BluetoothGattCallback) =
+        findDevice(address)?.let { connect(it, gattCallback) }
+
+    @Throws(BleException::class)
+    fun connect(device: BluetoothDevice, gattCallback: BluetoothGattCallback) = ensureMainThread {
         catch { stopScan() }
         catch {
             findGatt(device.address)?.connect()
@@ -194,37 +220,44 @@ object BLE {
         findGatt(address)?.let(BLE::disconnect)
     }
 
-    fun disconnect(gatt: BluetoothGatt) = catch {
-        main { gatt.disconnect() }
+    fun disconnect(gatt: BluetoothGatt) = ensureMainThread {
+        catch {
+            gatt.disconnect()
+        }
     }
 
     fun close(address: String) {
         findGatt(address)?.let(BLE::close)
     }
 
-    fun close(gatt: BluetoothGatt) = catch {
-        main {
+    fun close(gatt: BluetoothGatt) = ensureMainThread {
+        catch {
             gatt.disconnect()
-            delay(200)
-            gatt.close()
-            gattClients.remove(gatt.device.address)
+            Handler().postDelayed({
+                gatt.close()
+                gattClients.remove(gatt.device.address)
+            }, 200)
         }
     }
 
-    @Throws(Exception::class)
-    fun write(address: String, byteArray: ByteArray) = main {
+    fun write(address: String, byteArray: ByteArray): Boolean = ensureMainThread {
         val callback = findGattCallback(address) as? LogGattCallback
-            ?: throw LogGattCallback.GattException.Undefined()
+            ?: throw GattException.Undefined()
         callback.write(byteArray)
     }
 
-    @Throws(Exception::class)
-    fun asyncWrite(address: String, byteArray: ByteArray): Deferred<ByteArray> {
+    fun asyncWrite(address: String, byteArray: ByteArray): Deferred<ByteArray> = ensureMainThread {
         val callback = findGattCallback(address) as? LogGattCallback
-            ?: throw LogGattCallback.GattException.Undefined()
-        return callback.writeAsync(byteArray)
+            ?: throw GattException.Undefined()
+        callback.writeAsync(byteArray)
     }
     //endregion
+
+    @Throws(BleException::class)
+    private fun <T> ensureMainThread(action: () -> T): T {
+        if (!isMainThread) throw NotOnMainThreadException()
+        return action()
+    }
 
     private fun log(obj: Any?) {
         //if (log) Log(obj.toString())
@@ -248,5 +281,5 @@ fun BluetoothDevice.close() = BLE.close(address)
 fun BluetoothDevice.write(byteArray: ByteArray) = BLE.write(address, byteArray)
 
 @Throws(Exception::class)
-fun BluetoothDevice.asyncWrite(byteArray: ByteArray): Deferred<ByteArray> =
+fun BluetoothDevice.writeAsync(byteArray: ByteArray): Deferred<ByteArray> =
     BLE.asyncWrite(address, byteArray)

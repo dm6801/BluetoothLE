@@ -9,7 +9,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.dm6801.bluetoothle.*
 import com.dm6801.bluetoothle.utilities.catch
 import com.dm6801.bluetoothle.utilities.log
-import com.dm6801.bluetoothle.utilities.main
 import com.dm6801.bluetoothle_example.DevicesRecyclerAdapter.Companion.getTypedAdapter
 import kotlinx.android.synthetic.main.fragment_main.*
 import kotlinx.coroutines.flow.*
@@ -73,13 +72,13 @@ class MainFragment : BaseFragment() {
     private fun writeAsync() = main {
         var result: ByteArray?
         try {
-            result = device?.asyncWrite(byteArrayOf(0x02))?.await()
+            result = device?.writeAsync(byteArrayOf(0x02))?.await()
             log("BLE", "result=$result")
         } catch (t: Throwable) {
             t.printStackTrace()
         }
         try {
-            result = device?.asyncWrite(byteArrayOf(0x07))?.await()
+            result = device?.writeAsync(byteArrayOf(0x07))?.await()
             log("BLE", "result=$result")
         } catch (t: Throwable) {
             t.printStackTrace()

@@ -1,6 +1,8 @@
 package com.dm6801.bluetoothle
 
 import android.bluetooth.*
+import com.dm6801.bluetoothle.BLE.getStateString
+import com.dm6801.bluetoothle.utilities.BleException
 import com.dm6801.bluetoothle.utilities.Log
 import com.dm6801.bluetoothle.utilities.hashCode
 import com.dm6801.bluetoothle.utilities.justify
@@ -13,17 +15,8 @@ open class LogGattCallback : BluetoothGattCallback() {
     protected var logger = BLE.logger
 
     companion object {
-        fun getStateString(state: Int): String? {
-            return when (state) {
-                BluetoothProfile.STATE_CONNECTED -> "STATE_CONNECTED"
-                BluetoothProfile.STATE_CONNECTING -> "STATE_CONNECTING"
-                BluetoothProfile.STATE_DISCONNECTING -> "STATE_DISCONNECTING"
-                BluetoothProfile.STATE_DISCONNECTED -> "STATE_DISCONNECTED"
-                else -> null
-            }
-        }
-
-        val ByteArray?.prettyPrint get() = this?.joinToString(",") { it.toInt().toString() } ?: ""
+        val ByteArray?.prettyPrint
+            get() = this?.joinToString(" ") { String.format("%02X", it) } ?: ""
     }
 
     override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
@@ -139,7 +132,7 @@ open class LogGattCallback : BluetoothGattCallback() {
         log("onReliableWriteCompleted():", gatt, status)
     }
 
-    private fun log(
+    protected open fun log(
         tag: String,
         gatt: BluetoothGatt? = null,
         status: Int? = null,
@@ -153,31 +146,31 @@ open class LogGattCallback : BluetoothGattCallback() {
                 Thread.currentThread().justify() +
                         gatt?.device?.address.justify() +
                         tag.justify() +
-                        (gatt?.hashCode(16)?.justify("gatt ") ?: "") +
-                        (descriptor?.hashCode(16)?.justify("descriptor     ", size = 30) ?: "") +
-                        (characteristic?.hashCode(16)?.justify("characteristic ", size = 30)
+                        (gatt?.hashCode(16)?.justify(" gatt ") ?: "") +
+                        (descriptor?.uuid?.justify(" d ", size = 30) ?: "") +
+                        (characteristic?.uuid?.justify(" c ", size = 30)
                             ?: "") +
-                        status.justify("status ")
+                        status.justify(" status ")
             else
                 Thread.currentThread().justify() +
                         gatt?.device?.address.justify() +
-                        (gatt?.hashCode(16)?.justify("gatt ") ?: "") +
-                        (descriptor?.hashCode(16)?.justify("descriptor     ", size = 30) ?: "") +
-                        (characteristic?.hashCode(16)?.justify("characteristic ", size = 30)
+                        (gatt?.hashCode(16)?.justify(" gatt ") ?: "") +
+                        (descriptor?.uuid?.justify(" d ", size = 30) ?: "") +
+                        (characteristic?.uuid?.justify(" c ", size = 30)
                             ?: "") +
-                        status.justify("status ") +
+                        status.justify(" status ") +
                         tag.justify("\n") +
                         text
 
         )
     }
 
-    protected fun log(obj: Any?, level: Level = Level.INFO) {
+    protected open fun log(obj: Any?, level: Level = Level.INFO) {
         logger.log(level, obj.toString())
     }
 
     @Throws(NotImplementedError::class)
-    open fun write(byteArray: ByteArray) {
+    open fun write(byteArray: ByteArray): Boolean {
         throw NotImplementedError()
     }
 
@@ -187,24 +180,6 @@ open class LogGattCallback : BluetoothGattCallback() {
         timeout: Long = READ_CALLBACK_TIMEOUT
     ): Deferred<ByteArray> {
         throw NotImplementedError()
-    }
-
-    sealed class GattException(
-        override val message: String? = null,
-        override val cause: Throwable? = null
-    ) : Exception() {
-        companion object {
-            operator fun invoke(state: Int? = null): GattException =
-                GattException::class.java.let { ctor ->
-                    (ctor.declaredConstructors.firstOrNull()
-                        ?.newInstance(state?.let { "state: ${getStateString(it)}" }) as? GattException)
-                        ?: ctor.newInstance()
-                }
-        }
-
-        class Undefined : GattException("callback is undefined")
-        class NotConnected(state: Int) : GattException("state: ${getStateString(state)}")
-        class NotWritable(state: Int) : GattException("state: ${getStateString(state)}")
     }
 
 }

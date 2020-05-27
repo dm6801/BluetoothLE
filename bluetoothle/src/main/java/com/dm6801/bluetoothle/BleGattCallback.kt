@@ -1,11 +1,10 @@
 package com.dm6801.bluetoothle
 
 import android.bluetooth.*
+import android.os.Handler
 import com.dm6801.bluetoothle.utilities.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.delay
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeoutException
 
@@ -15,10 +14,10 @@ abstract class BleGattCallback : LogGattCallback() {
         val manager: BluetoothManager? get() = BLE.manager
     }
 
-    abstract val SERVICE_UUID: UUID
-    val readable = mutableSetOf<BluetoothGattCharacteristic>()
-    val notifiable = mutableSetOf<BluetoothGattCharacteristic>()
-    val writable = mutableSetOf<BluetoothGattCharacteristic>()
+    val services = mutableMapOf<String, BluetoothGattService>()
+    val readable = mutableMapOf<String, Set<BluetoothGattCharacteristic>>()
+    val notifiable = mutableMapOf<String, Set<BluetoothGattCharacteristic>>()
+    val writable = mutableMapOf<String, Set<BluetoothGattCharacteristic>>()
 
     protected var gatt: BluetoothGatt? by weakRef(null)
     val state: Int
@@ -41,36 +40,57 @@ abstract class BleGattCallback : LogGattCallback() {
         }
     }
 
-    protected open fun clearCharacteristics() {
-        readable.clear()
-        notifiable.clear()
-        writable.clear()
+    protected open fun clearCharacteristics(uuid: String? = null) {
+        if (uuid != null) {
+            readable.remove(uuid)
+            notifiable.remove(uuid)
+            writable.remove(uuid)
+        } else {
+            readable.clear()
+            notifiable.clear()
+            writable.clear()
+        }
     }
 
     override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
         super.onServicesDiscovered(gatt, status)
         this.gatt = gatt
         if (status != BluetoothGatt.GATT_SUCCESS) return
-        val service = gatt?.getService(SERVICE_UUID)
+        services.putAll(gatt?.services?.map { it.uuid.toString() to it } ?: return)
+        setServices(services.values)
+    }
+
+    protected open fun setServices(services: Collection<BluetoothGattService>) {
+        services.forEach(::setService)
+    }
+
+    protected open fun setService(service: BluetoothGattService) {
         log("service ${service.hashCode(16)}")
-        clearCharacteristics()
-        service?.characteristics?.forEach { characteristic ->
+        val uuid = service.uuid.toString()
+        clearCharacteristics(uuid)
+        readable[uuid] = mutableSetOf()
+        notifiable[uuid] = mutableSetOf()
+        writable[uuid] = mutableSetOf()
+        service.characteristics?.forEach { characteristic ->
             log("characteristic ${characteristic.hashCode(16)}")
+            val readable = readable[uuid] as MutableSet
             if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ > 0) {
                 log("characteristic ${characteristic.hashCode(16)} readable")
                 readable.add(characteristic)
             }
+            val notifiable = notifiable[uuid] as MutableSet
             if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY > 0) {
                 log("characteristic ${characteristic.hashCode(16)} notifiable")
-                catch { gatt.setCharacteristicNotification(characteristic, true) }
+                catch { gatt?.setCharacteristicNotification(characteristic, true) }
                 catch {
                     characteristic.descriptors.forEach { descriptor ->
                         descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                        gatt.writeDescriptor(descriptor)
+                        gatt?.writeDescriptor(descriptor)
                     }
                     notifiable.add(characteristic)
                 }
             }
+            val writable = writable[uuid] as MutableSet
             if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE > 0) {
                 log("characteristic ${characteristic.hashCode(16)} writable, setting WRITE_TYPE_DEFAULT")
                 catch {
@@ -104,7 +124,6 @@ abstract class BleGattCallback : LogGattCallback() {
 
     protected open var readQueue = ConcurrentHashMap<Long, CompletableDeferred<ByteArray>>()
 
-    @Throws(GattException::class)
     override fun writeAsync(byteArray: ByteArray, timeout: Long): Deferred<ByteArray> {
         val gatt = gatt ?: throw GattException.Undefined()
         if (state != BluetoothGatt.STATE_CONNECTED) throw GattException.NotConnected(state)
@@ -112,26 +131,26 @@ abstract class BleGattCallback : LogGattCallback() {
         val completable = CompletableDeferred<ByteArray>()
         val tag = System.currentTimeMillis()
         readQueue[tag] = completable
-        writable.forEach {
+        writable.values.flatten().forEach {
             it.value = byteArray
             gatt.writeCharacteristic(it)
         }
-        main {
-            delay(timeout)
+        Handler().postDelayed({
             readQueue.remove(tag)?.completeExceptionally(TimeoutException())
-        }
+        }, timeout)
         return completable
     }
 
-    @Throws(GattException::class)
-    override fun write(byteArray: ByteArray) {
+    override fun write(byteArray: ByteArray): Boolean {
         val gatt = gatt ?: throw GattException.Undefined()
         if (state != BluetoothGatt.STATE_CONNECTED) throw GattException.NotConnected(state)
         if (writable.isEmpty()) throw GattException.NotWritable(state)
-        writable.forEach {
+        var result = true
+        writable.values.flatten().forEach {
             it.value = byteArray
-            gatt.writeCharacteristic(it)
+            result = gatt.writeCharacteristic(it) && result
         }
+        return result
     }
 
 }
