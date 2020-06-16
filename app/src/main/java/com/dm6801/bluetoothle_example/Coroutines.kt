@@ -9,11 +9,18 @@ val exceptionHandler = CoroutineExceptionHandler { coroutineContext, throwable -
     throwable.printStackTrace()
 }
 
-fun <R> CoroutineScope.catch(silent: Boolean = false, action: CoroutineScope.() -> R): R? {
+suspend fun <R> CoroutineScope.catch(silent: Boolean = false, action: suspend CoroutineScope.() -> R): R? {
     return try {
         action(this)
     } catch (t: Throwable) {
         if (!silent) t.printStackTrace()
         null
     }
+}
+
+fun <R> CoroutineScope.launchCatch(
+    silent: Boolean = false,
+    action: suspend CoroutineScope.() -> R
+): Job {
+    return launch { catch(silent, action) }
 }

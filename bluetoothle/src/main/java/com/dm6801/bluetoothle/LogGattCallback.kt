@@ -2,11 +2,11 @@ package com.dm6801.bluetoothle
 
 import android.bluetooth.*
 import com.dm6801.bluetoothle.BLE.getStateString
-import com.dm6801.bluetoothle.utilities.BleException
-import com.dm6801.bluetoothle.utilities.Log
 import com.dm6801.bluetoothle.utilities.hashCode
 import com.dm6801.bluetoothle.utilities.justify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.channels.ReceiveChannel
 import java.util.logging.Level
 
 open class LogGattCallback : BluetoothGattCallback() {
@@ -175,6 +175,16 @@ open class LogGattCallback : BluetoothGattCallback() {
     }
 
     @Throws(NotImplementedError::class)
+    open fun writeAsync(
+        scope: CoroutineScope,
+        byteArray: ByteArray,
+        opcode: Byte,
+        timeout: Long = READ_CALLBACK_TIMEOUT,
+        predicate: (ByteArray) -> Boolean
+    ): ReceiveChannel<ByteArray> {
+        throw NotImplementedError()
+    }
+
     open fun writeAsync(
         byteArray: ByteArray,
         timeout: Long = READ_CALLBACK_TIMEOUT

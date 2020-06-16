@@ -8,11 +8,18 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.core.view.isGone
+import androidx.lifecycle.lifecycleScope
 import com.dm6801.bluetoothle.*
+import com.dm6801.bluetoothle.utilities.catch
+import com.dm6801.bluetoothle.utilities.log
 import com.dm6801.bluetoothle.utilities.weakRef
 import kotlinx.android.synthetic.main.fragment_device.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.*
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.*
 
 class DeviceFragment(device: BluetoothDevice) : BaseFragment() {
@@ -171,18 +178,29 @@ class DeviceFragment(device: BluetoothDevice) : BaseFragment() {
                         .map { java.lang.Long.parseLong(it, 16).toByte() }
                         .toByteArray()
                     main {
-                        val result = device?.writeAsync(outByteArray)?.await() ?: return@main
-                        val receivedHex =
-                            result.joinToString(" ") { String.format("%02X", it) }
-                        commLog.appendln(
-                            "-> ${sendHex.toUpperCase(Locale.ROOT)}\n<- ${receivedHex.toUpperCase(
-                                Locale.ROOT
-                            )}"
+                        printUpdate(
+                            sendHex,
+                            device?.writeAsync(this, outByteArray, outByteArray.first())
                         )
-                        updateLogTextView()
                     }
                 } catch (t: Throwable) {
                     t.printStackTrace()
+                }
+            }
+        }
+    }
+
+    private fun printUpdate(sent: String, receive: ReceiveChannel<ByteArray>?) {
+        receive?.let {
+            main {
+                for (update in receive) {
+                    val receivedHex = update.joinToString(" ") { String.format("%02X", it) }
+                    commLog.appendln(
+                        "-> ${sent.toUpperCase(Locale.ROOT)}\n<- ${receivedHex.toUpperCase(
+                            Locale.ROOT
+                        )}"
+                    )
+                    updateLogTextView()
                 }
             }
         }
@@ -198,6 +216,57 @@ class DeviceFragment(device: BluetoothDevice) : BaseFragment() {
         close_gatt_button?.setOnClickListener {
             device?.close()
         }
+        debug_button?.isGone = true
+        debug_button?.setOnClickListener {
+            debug()
+        }
     }
+
+    //region debug
+    private fun debug() {
+        //fetchSystemInfo()
+        getSchedules()
+    }
+
+    private fun writeAsync() = main {
+        var result: ByteArray?
+        try {
+            result = device?.writeAsync(this, byteArrayOf(0x02), 0x02)?.receive()
+            log("BLE", "result=$result")
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        }
+        try {
+            result = device?.writeAsync(this, byteArrayOf(0x07), 0x05)?.receive()
+            log("BLE", "result=$result")
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        }
+    }
+
+    private fun fetchSystemInfo() = lifecycleScope.launchCatch {
+        device?.write(byteArrayOf(0x0b, 0x01, 0x01, 0x01, 0x01))
+        delay(1_000)
+        printUpdate("07", device?.writeAsync(this, byteArrayOf(0x07), 0x05))
+    }
+
+    private fun getSchedules() = lifecycleScope.launchCatch {
+        device?.write(byteArrayOf(0x0b, 0x01, 0x01, 0x01, 0x01))
+        delay(1_000)
+        printUpdate("02", device?.writeAsync(this, byteArrayOf(0x02), 0x02))
+    }
+
+    private fun sendRTC() = catch {
+        val now = Date()
+        val offsetFromUtc = TimeZone.getDefault().getOffset(now.time)
+        val time = ((now.time + offsetFromUtc) / 1_000).toInt()
+
+        val buffer = ByteBuffer.allocate(4).apply {
+            order(ByteOrder.BIG_ENDIAN)
+            putInt(time)
+        }
+        device?.write(buffer.array())
+    }
+    //endregion
 
 }

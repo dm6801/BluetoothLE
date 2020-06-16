@@ -3,8 +3,9 @@ package com.dm6801.bluetoothle
 import android.bluetooth.*
 import android.os.Handler
 import com.dm6801.bluetoothle.utilities.*
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeoutException
 
@@ -18,6 +19,8 @@ abstract class BleGattCallback : LogGattCallback() {
     val readable = mutableMapOf<String, Set<BluetoothGattCharacteristic>>()
     val notifiable = mutableMapOf<String, Set<BluetoothGattCharacteristic>>()
     val writable = mutableMapOf<String, Set<BluetoothGattCharacteristic>>()
+
+    private val scope = SupervisorJob() + Dispatchers.IO
 
     protected var gatt: BluetoothGatt? by weakRef(null)
     val state: Int
@@ -107,9 +110,7 @@ abstract class BleGattCallback : LogGattCallback() {
         status: Int
     ) {
         super.onCharacteristicRead(gatt, characteristic, status)
-        readQueue.entries.firstOrNull()?.let { callback ->
-            readQueue.remove(callback.key)?.complete(characteristic?.value ?: byteArrayOf())
-        }
+        parseCharacteristicData(characteristic?.value ?: return)
     }
 
     override fun onCharacteristicChanged(
@@ -117,29 +118,31 @@ abstract class BleGattCallback : LogGattCallback() {
         characteristic: BluetoothGattCharacteristic?
     ) {
         super.onCharacteristicChanged(gatt, characteristic)
-        readQueue.entries.firstOrNull()?.let { callback ->
-            readQueue.remove(callback.key)?.complete(characteristic?.value ?: byteArrayOf())
+        parseCharacteristicData(characteristic?.value ?: return)
+    }
+
+    private fun parseCharacteristicData(data: ByteArray) {
+        if (data.isEmpty()) return
+        val opcode = data.first()
+        val callback = callbacks[opcode]
+        if (callback != null) {
+            callback.scope.takeIf { it.isActive }?.launch {
+                try {
+                    callback.channel.send(data)
+                    if (callback.predicate(data)) callbacks.remove(opcode)
+                } catch (t: Throwable) {
+                    t.printStackTrace()
+                }
+            }
+        } else {
+            queue.entries.firstOrNull()?.let {
+                queue.remove(it.key)?.complete(data)
+            }
         }
     }
 
-    protected open var readQueue = ConcurrentHashMap<Long, CompletableDeferred<ByteArray>>()
-
-    override fun writeAsync(byteArray: ByteArray, timeout: Long): Deferred<ByteArray> {
-        val gatt = gatt ?: throw GattException.Undefined()
-        if (state != BluetoothGatt.STATE_CONNECTED) throw GattException.NotConnected(state)
-        if (writable.isEmpty()) throw GattException.NotWritable(state)
-        val completable = CompletableDeferred<ByteArray>()
-        val tag = System.currentTimeMillis()
-        readQueue[tag] = completable
-        writable.values.flatten().forEach {
-            it.value = byteArray
-            gatt.writeCharacteristic(it)
-        }
-        Handler().postDelayed({
-            readQueue.remove(tag)?.completeExceptionally(TimeoutException())
-        }, timeout)
-        return completable
-    }
+    protected open var callbacks = ConcurrentHashMap<Byte, OnUpdate>()
+    protected open var queue = ConcurrentHashMap<Long, CompletableDeferred<ByteArray>>()
 
     override fun write(byteArray: ByteArray): Boolean {
         val gatt = gatt ?: throw GattException.Undefined()
@@ -153,5 +156,59 @@ abstract class BleGattCallback : LogGattCallback() {
         return result
     }
 
-}
+    override fun writeAsync(
+        byteArray: ByteArray,
+        timeout: Long
+    ): Deferred<ByteArray> {
+        val gatt = gatt ?: throw GattException.Undefined()
+        if (state != BluetoothGatt.STATE_CONNECTED) throw GattException.NotConnected(state)
+        if (writable.isEmpty()) throw GattException.NotWritable(state)
+        val completable = CompletableDeferred<ByteArray>()
+        val tag = System.currentTimeMillis()
+        queue[tag] = completable
+        writable.values.flatten().forEach {
+            it.value = byteArray
+            gatt.writeCharacteristic(it)
+        }
+        Handler().postDelayed({
+            queue.remove(tag)?.completeExceptionally(TimeoutException())
+        }, timeout)
+        return completable
+    }
 
+    override fun writeAsync(
+        scope: CoroutineScope,
+        byteArray: ByteArray,
+        opcode: Byte,
+        timeout: Long,
+        predicate: (ByteArray) -> Boolean
+    ): ReceiveChannel<ByteArray> {
+        val gatt = gatt ?: throw GattException.Undefined()
+        if (state != BluetoothGatt.STATE_CONNECTED) throw GattException.NotConnected(state)
+        if (writable.isEmpty()) throw GattException.NotWritable(state)
+        val channel = Channel<ByteArray>()
+        callbacks[opcode] = OnUpdate(opcode, timeout, channel, scope, predicate)
+        writable.values.flatten().forEach {
+            it.value = byteArray
+            gatt.writeCharacteristic(it)
+        }
+        return channel
+    }
+
+    inner class OnUpdate(
+        val opcode: Byte,
+        val timeout: Long,
+        val channel: Channel<ByteArray>,
+        val scope: CoroutineScope,
+        val predicate: (ByteArray) -> Boolean
+    ) {
+        init {
+            scope.launch {
+                delay(timeout)
+                channel.close(TimeoutException())
+                callbacks.remove(opcode)
+            }
+        }
+    }
+
+}

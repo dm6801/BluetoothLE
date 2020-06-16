@@ -246,10 +246,22 @@ object BLE {
         callback.write(byteArray)
     }
 
-    fun asyncWrite(address: String, byteArray: ByteArray): Deferred<ByteArray> = ensureMainThread {
+    fun writeAsync(address: String, byteArray: ByteArray): Deferred<ByteArray> = ensureMainThread {
         val callback = findGattCallback(address) as? LogGattCallback
             ?: throw GattException.Undefined()
         callback.writeAsync(byteArray)
+    }
+
+    fun writeAsync(
+        scope: CoroutineScope,
+        address: String,
+        byteArray: ByteArray,
+        opcode: Byte,
+        predicate: (ByteArray) -> Boolean
+    ): ReceiveChannel<ByteArray> = ensureMainThread {
+        val callback = findGattCallback(address) as? LogGattCallback
+            ?: throw GattException.Undefined()
+        callback.writeAsync(scope, byteArray, opcode, predicate = predicate)
     }
     //endregion
 
@@ -282,4 +294,12 @@ fun BluetoothDevice.write(byteArray: ByteArray) = BLE.write(address, byteArray)
 
 @Throws(Exception::class)
 fun BluetoothDevice.writeAsync(byteArray: ByteArray): Deferred<ByteArray> =
-    BLE.asyncWrite(address, byteArray)
+    BLE.writeAsync(address, byteArray)
+
+@Throws(Exception::class)
+fun BluetoothDevice.writeAsync(
+    scope: CoroutineScope,
+    byteArray: ByteArray,
+    opcode: Byte,
+    predicate: (ByteArray) -> Boolean = { _ -> true }
+): ReceiveChannel<ByteArray> = BLE.writeAsync(scope, address, byteArray, opcode, predicate)
