@@ -66,6 +66,7 @@ object BLE {
     }
 
     //region scan
+    val isScanning: Boolean get() = scanChannel != null
     private var scanChannel: ReceiveChannel<ScanResult>? = null
 
     fun scan(
@@ -74,7 +75,7 @@ object BLE {
         unique: Boolean? = null
     ): ReceiveChannel<ScanResult> = ensureMainThread {
         stopScan()
-        CoroutineScope(scope.coroutineContext).produce {
+        CoroutineScope(scope.coroutineContext + exceptionHandler).produce {
             val channel = Channel<ScanResult>()
             val scanCallback = ChannelScanCallback(channel, unique)
             try {
@@ -94,8 +95,7 @@ object BLE {
                     send(scanResult)
                 }
             } catch (t: Throwable) {
-                t.cause?.printStackTrace()
-                    ?: t.printStackTrace()
+                //t.cause?.printStackTrace() ?: t.printStackTrace()
             } finally {
                 try {
                     scanner?.stopScan(scanCallback)
